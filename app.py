@@ -1,49 +1,35 @@
 import pandas as pd
+import streamlit as st
 
-# -----------------------------------
-# STEP 1: Load the prepared dataset
-# -----------------------------------
-# (Make sure pharmgeno_mixed_1000.csv is in the same folder)
-try:
-    df = pd.read_csv("pharmgeno_mixed_1000.csv")
-    print("✅ Dataset loaded successfully!")
-    print(f"Total records: {len(df)}")
-except FileNotFoundError:
-    print("❌ Dataset file not found. Please check the file name or path.")
-    raise SystemExit
+# Load dataset
+df = pd.read_csv("pharmgeno_mixed_1000.csv")
 
-# -----------------------------------
-# STEP 2: Build lookup dictionary
-# -----------------------------------
-lookup = {}
-for _, row in df.iterrows():
-    key = (row["Variant/Haplotypes"].strip(), row["Drug(s)"].strip().lower())
-    lookup[key] = row["Side Effect"]
+st.title("🧬 GeneGuard - Side Effect Checker")
+st.write("Enter a DNA Variant and a Medicine to check if any side effect is known.")
 
-print("✅ Lookup table ready with", len(lookup), "known combinations.")
+# User input fields
+variant = st.text_input("Enter DNA Variant (e.g., rs429358):")
+medicine = st.text_input("Enter Medicine name (e.g., aspirin):")
 
-# -----------------------------------
-# STEP 3: User input
-# -----------------------------------
-while True:
-    print("\n🔎 --- GeneGuard Lookup ---")
-    variant_input = input("Enter DNA Variant (e.g., rs429358): ").strip()
-    drug_input = input("Enter Medicine Name (e.g., warfarin): ").strip().lower()
-
-    # -----------------------------------
-    # STEP 4: Output prediction
-    # -----------------------------------
-    result = lookup.get((variant_input, drug_input), None)
-
-    if result is None or result == "None":
-        print("✅ Output: No Side Effect")
+if st.button("Check Side Effect"):
+    if variant and medicine:
+        # Filter dataset
+        result = df[(df["Variant/Haplotypes"].str.lower() == variant.strip().lower()) &
+                    (df["Drug(s)"].str.lower() == medicine.strip().lower())]
+        
+        if not result.empty:
+            side_effects = result["Side Effect"].tolist()
+            # Remove duplicates
+            side_effects = list(set(side_effects))
+            # Check if all are "None"
+            if all(se.lower() == "none" for se in side_effects):
+                st.success(f"✅ No known side effects for {variant} with {medicine}.")
+            else:
+                st.error(f"⚠️ Known side effect(s) for {variant} with {medicine}: {', '.join(side_effects)}")
+        else:
+            st.info(f"No data found for {variant} with {medicine}. It might be safe, but not in our dataset.")
     else:
-        print(f"⚠️ Output: {result}")
+        st.warning("Please enter both DNA Variant and Medicine.")
 
-    # -----------------------------------
-    # STEP 5: Ask if user wants to try again
-    # -----------------------------------
-    again = input("\nDo you want to check another combination? (yes/no): ").strip().lower()
-    if again not in ["yes", "y"]:
-        print("✅ Thank you for using GeneGuard!")
-        break
+
+    
